@@ -1,0 +1,58 @@
+//this code was put together by Camden Shanks and Juliana Hinson
+
+//load this code onto the circuit playground express to make p5.js game work
+
+#include <Adafruit_CircuitPlayground.h>
+
+bool lastLeftButtonState = false;
+bool lastRightButtonState = false;
+bool touchState = false;
+int lastTouchSensorState = -1;
+
+
+void setup() {
+ Serial.begin(9600);  
+ CircuitPlayground.begin();
+}
+
+
+void loop() {
+ bool leftButtonPressed = CircuitPlayground.leftButton();
+ bool rightButtonPressed = CircuitPlayground.rightButton();
+ int touchSensorValue = analogRead(A2);  //read touch sensor value
+
+ int touchState = (touchSensorValue > 0 && touchSensorValue < 1023) ? 1 : 0;
+
+
+ // Send touch sensor state only if it changes
+ if (touchState != lastTouchSensorState) {
+   Serial.println(touchState);
+   //Serial.println(touchSensorValue);
+   lastTouchSensorState = touchState;
+ }
+
+
+ // Check for left button press and send only if it changes state
+ if (leftButtonPressed != lastLeftButtonState) {
+   if (leftButtonPressed) {
+     Serial.println(3);  //left button pressed
+   } else {
+     Serial.println(2);  //left button released
+   }
+   lastLeftButtonState = leftButtonPressed;
+ }
+
+
+ // Check for right button press and send only if it changes state
+ if (rightButtonPressed != lastRightButtonState) {
+   if (rightButtonPressed) {
+     Serial.println(5);  //right button pressed
+   } else {
+     Serial.println(4);  //right button released
+   }
+   lastRightButtonState = rightButtonPressed;
+ }
+
+
+ delay(50);  //small delay to avoid flooding the serial port with data making it go crazzzyyy
+}
