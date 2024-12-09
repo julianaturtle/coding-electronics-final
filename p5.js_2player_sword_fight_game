@@ -1,0 +1,513 @@
+//this was created by Camden Shanks and Juliana Hinson
+
+//serial
+let serialPorts = ['/dev/tty.usbmodem1101'];
+let serials = [];
+let data = [];
+let serial;
+
+let latestData;
+
+let lastData = null;
+
+//strike
+let outerB1 = 95;
+let outerB2 = 450;
+let positionBlue = 60;
+let positionRed = 360;
+let BlueStrike;
+let RedStrike;
+
+let bluesword;
+let redsword;
+
+let isBlueStriking = false;
+let isRedStriking = false;
+
+let swordHit1;
+let swordHit2;
+let clashHit;
+let finalBlow;
+
+let lastBlueHitTime = 0;
+let lastRedHitTime = 0;
+let soundCooldown = 1000;
+
+//health bars
+let currentHealth = 100;
+let blueHealth = 100;
+let redHealth = 100;
+
+let ySpeed = 0;
+let gravityAcceleration = 0.1;
+let diameter = 20;
+let blueY = 168;
+let redY = 168;
+
+let music;
+
+//load the players
+function preload() {
+  
+  //load the sound 
+  //credit Pixabay Free Sounds
+  swordHit1 = loadSound("SoundFXs/sword-hit1.mp3");
+  swordHit2 = loadSound("SoundFXs/sword-hi2.mp3");
+  clashHit = loadSound("SoundFXs/sword-hit3.mp3");
+  finalBlow = loadSound("SoundFXs/final-blow.mp3");
+  
+  //credit artist Kevin Macleod
+  music = loadSound("SoundFXs/music.mp3");
+
+  //Load the avatars
+  //credit Camden Shanks
+  bluesword = loadImage("Fighter-PNGs/BlueSwords.gif");
+  // load the red fighter
+  redsword = loadImage("Fighter-PNGs/RedSwords-20.gif");
+
+  //load blue strike
+  BlueStrike = loadImage("Fighter-PNGs/Strike.gif");
+
+  //load red strike
+  RedStrike = loadImage("Fighter-PNGs/Strike-20(Copy).gif");
+}
+
+function setup() {
+  createCanvas(640, 500);
+  userStartAudio();
+  swordHit1.setVolume(0.5);
+  swordHit2.setVolume(0.5);
+  clashHit.setVolume(0.5);
+  finalBlow.setVolume(0.5);
+  
+  if (music.isLoaded()) {
+    music.setVolume(0.5);
+    music.loop();
+  }
+  
+ //serial below  
+
+ serial = new p5.SerialPort();
+
+ serial.list();
+ serial.open('/dev/tty.usbmodem1101');
+
+ serial.on('connected', serverConnected);
+
+ serial.on('list', gotList);
+
+ serial.on('data', gotData);
+
+ serial.on('error', gotError);
+
+ serial.on('open', gotOpen);
+
+ serial.on('close', gotClose);
+}
+
+function serverConnected() {
+ print("Connected to Server");
+}
+
+// Callback function when the list of serial ports is available
+function gotList(portList) {
+  console.log("Available Serial Ports:");
+  for (let i = 0; i < portList.length; i++) {
+    console.log(i + ": " + portList[i]);
+  }
+
+  // Open the first available serial port
+  if (portList.length > 0) {
+    serial.open(portList[0], { baudRate: 9600 }); // Open the port with a baud rate of 9600
+  } else {
+    console.log("No serial ports found.");
+  }
+}
+
+function serverConnected() {
+  console.log("Connected to Server");
+}
+
+//ports
+function gotList(thelist) {
+  console.log("List of Serial Ports:");
+
+  for (let i = 0; i < thelist.length; i++) {
+    console.log(i + " " + thelist[i]);
+  }
+}
+
+function gotOpen() {
+  console.log("Serial Port is Open");
+}
+
+function gotClose() {
+  console.log("Serial Port is Closed");
+  latestData = "Serial Port is Closed";
+}
+
+function gotError(theerror) {
+  console.log(theerror);
+}
+
+
+//blue character strike, touch sensor, and debouncing
+let previousTouchState = 0;
+let touchDebounceDelay = 200;
+let lastTouchTime = 0;
+let touchSensorTriggered = false;
+let strikeDuration = 500;
+
+function gotData() {
+  let currentString = serial.readLine();  // Read the serial data
+  trim(currentString); // Remove whitespace
+  if (!currentString) return; // Ignore if empty data
+
+  console.log("Received Data:", currentString);
+  
+ 
+  let currentData = int(currentString);
+  if (!isNaN(currentData)) {
+    latestData = currentData;
+  }
+
+  let currentTime = millis();
+
+  //only trigger strike when touch sensor goes from 0 to 1, and debounce it
+  if (latestData === 1 && previousTouchState === 0 && currentTime - lastTouchTime > touchDebounceDelay) {
+    if (!touchSensorTriggered && !isBlueStriking) {
+      // Trigger the strike and mark it as triggered
+      isBlueStriking = true;  
+      touchSensorTriggered = true;  //mark the sensor as triggered
+      lastTouchTime = currentTime;  //update the last touch time
+      
+      //reset the strike after the defined duration
+      setTimeout(() => {
+        isBlueStriking = false;
+        touchSensorTriggered = false;  //allow next touch to trigger strike
+      }, strikeDuration); 
+    }
+  }
+
+  //reset when the sensor goes back to 0
+  if (latestData === 0) {
+    touchSensorTriggered = false;
+  }
+
+  //store the current touch state for the next iteration
+  previousTouchState = latestData;
+}
+
+
+function checkCollision(hitbox1, hitbox2) {
+  return (
+    hitbox1.x < hitbox2.x + hitbox2.w &&
+    hitbox1.x + hitbox1.w > hitbox2.x &&
+    hitbox1.y < hitbox2.y + hitbox2.h &&
+    hitbox1.y + hitbox1.h > hitbox2.y
+  );
+}
+//hit Boxes
+let blueHitbox = { x: positionBlue + 50, y: blueY + 50, w: 160, h: 100 };
+let redHitbox = { x: positionRed + 50, y: redY + 50, w: 160, h: 100 };
+
+//strike Boxes
+let blueStrikebox = { x: positionBlue + 200, y: blueY + 50, w: 60, h: 60 };
+let redStrikebox = { x: positionRed + 200, y: redY + 50, w: 60, h: 60 };
+
+function collisionDetect() {
+  let currentTime = millis();
+
+  //check if Blue strike hits Red fighter
+  if (isBlueStriking && checkCollision(blueStrikebox, redStrikebox)) {
+    if (currentTime - lastBlueHitTime > soundCooldown) {
+      if (!swordHit1.isPlaying()) {
+        swordHit1.play(); // Play sound when Blue strikes Red
+      }
+      lastBlueHitTime = currentTime;
+    }
+
+    //collision detected - Decrease health of Red fighter
+    redHealth = max(redHealth - 5, 0);
+  }
+
+  //check if red strike hits blue character
+  if (isRedStriking && checkCollision(redStrikebox, blueStrikebox)) {
+    if (currentTime - lastRedHitTime > soundCooldown) {
+      if (!swordHit2.isPlaying()) {
+        swordHit2.play(); // Play sound when Red strikes Blue
+      }
+      lastRedHitTime = currentTime;
+    }
+
+    //collision detected -decrease health of blue character
+    blueHealth = max(blueHealth - 5, 0);
+  }
+}
+
+function StrikeBoxes() {
+  //blue strikebox adjusts when blue is striking
+  blueStrikebox.x = positionBlue + (isBlueStriking ? 200 : 50);
+  blueStrikebox.y = blueY + 50;
+  blueStrikebox.w = 60;
+  blueStrikebox.h = 60;
+
+  //red strikebox adjusts when red is striking
+  redStrikebox.x = positionRed + (isRedStriking ? 200 : 50);
+  redStrikebox.y = redY + 50;
+  redStrikebox.w = 60;
+  redStrikebox.h = 60;
+}
+
+function keyPressed() {
+  //strike actions
+  if (keyCode === UP_ARROW) {
+    isRedStriking = true;
+    setTimeout(() => {
+      isRedStriking = false;
+    }, 500); //red strike duration
+  }
+
+  if (key === "f" || key === "F") {
+    isBlueStriking = true;
+    setTimeout(() => {
+      isBlueStriking = false;
+    }, 500); //blue strike duration
+  }
+
+  //left/right movement for red
+  if (keyCode === LEFT_ARROW) {
+    positionRed -= 10;
+  } else if (keyCode === RIGHT_ARROW) {
+    positionRed += 10;
+  }
+
+  // Left/Right movement for Blue
+  if (key === "a" || key === "A") {
+    positionBlue -= 10;
+  } else if (key === "s" || key === "S") {
+    positionBlue += 10;
+  }
+}
+
+
+function moveCharacter() {
+  //handle character movement and actions based on serial input
+  let check;
+  //touch Sensor (1 or 0)
+  if (latestData === 1) {
+    image(BlueStrike, positionBlue, blueY, 260, 150); //show strike image
+    //background(220);
+    
+  } else if (latestData === 0) {
+    image(bluesword, positionBlue, blueY, 260, 150); // Show sword image
+  }
+  //image(BlueStrike, positionBlue, blueY, 260, 150); 
+
+  ///eft Button (3 or 2)
+  if (latestData === 3) {
+    positionBlue -= 5; // Move left
+  } else if (latestData === 2) {
+    positionBlue = positionBlue; // No movement
+  }
+
+  //right Button (5 or 4)
+  if (latestData === 5) {
+    positionBlue += 5; // Move right
+  } else if (latestData === 4) {
+    positionBlue = positionBlue; // No movement
+  }
+}
+
+function draw() {
+  background(220);
+  collisionDetect();
+  StrikeBoxes();
+  checkGameOver();
+  moveCharacter();
+  
+  //render blue character
+  if (latestData === 1) {
+    image(BlueStrike, positionBlue, blueY, 260, 150); // Blue strike image
+  } else {
+    image(bluesword, positionBlue, blueY, 260, 150); // Blue sword image
+  }
+
+  //render red character
+  if (isRedStriking) {
+    image(RedStrike, positionRed, redY, 260, 150); //red strike image
+  } else {
+    image(redsword, positionRed, redY, 260, 150); //red sword image
+  }
+
+
+  function StrikeBoxes() {
+    blueStrikebox.x = positionBlue + (isBlueStriking ? 200 : 50);
+    blueStrikebox.y = blueY + 50;
+    blueStrikebox.w = 60;
+    blueStrikebox.h = 60;
+
+    redStrikebox.x = positionRed + (isRedStriking ? 200 : 50);
+    redStrikebox.y = redY + 50;
+    redStrikebox.w = 60;
+    redStrikebox.h = 60;
+  }
+
+  //if players are out of bounds, they fall
+
+  if (positionBlue + 100 < outerB1 || positionBlue > outerB2) {
+    ySpeed += gravityAcceleration;
+    blueY += ySpeed;
+  }
+
+  if (positionRed + 100 < outerB1 || positionRed > outerB2) {
+    ySpeed += gravityAcceleration;
+    redY += ySpeed;
+  }
+
+  blueY = min(blueY, height - diameter);
+  redY = min(redY, height - diameter);
+
+  HealthBar(blueHealth, 50, 30, "blue");
+  HealthBar(redHealth, width - 250, 30, "red");
+
+  //positions based on key presses takes less time to travel
+  /*if (keyIsDown(LEFT_ARROW)) {
+    positionBlue -= 5;
+  }
+  if (keyIsDown(RIGHT_ARROW)) {
+    positionBlue += 5;
+  }*/
+  if (keyIsDown(LEFT_ARROW)) {
+    positionRed -= 5;
+  }
+  if (keyIsDown(RIGHT_ARROW)) {
+    positionRed += 5;
+  }
+  
+/*
+if (latestData == 1) {
+  image(BlueStrike, positionBlue, blueY, 260, 150);
+} else if (latestData == 0) {
+  image(bluesword, positionBlue, blueY, 260, 150);
+}
+
+if (latestData == 2) {
+  positionBlue -= 5; // Move left
+} else if (latestData == 3) {
+  positionBlue += 5; // Move right
+} */
+    
+    //press buttons on circuit playground express to move player
+   /* if (latestData == 2) {
+    positionBlue += 0; //standstill
+  } else if (latestData == 4) {
+   positionBlue -= 10; //left button
+  }
+  
+    if (latestData == 3) {
+    positionBlue += 0; //standstill
+  } else if (latestData ==5) {
+   positionBlue += 10; //right button
+  } */
+  
+/*
+  if (isBlueStriking) {
+    image(BlueStrike, positionBlue, blueY, 260, 150);
+  } else {
+    image(bluesword, positionBlue, blueY, 260, 150);
+  } */
+
+  if (isRedStriking) {
+    image(RedStrike, positionRed, redY, 260, 150);
+  } else {
+    image(redsword, positionRed, redY, 260, 150);
+  }
+  fill(255);
+  strokeWeight(3);
+  rect(outerB1, 300, outerB2, 450);
+}
+
+function HealthBar(health, x, y, color) {
+  let barWidth = 200;
+  let healthBarWidth = map(health, 0, 100, 0, barWidth);
+
+  if (color === "blue") {
+    if (health > 50) {
+      fill(0, 191, 255); //Blue = good
+    } else if (health > 20) {
+      fill(255, 255, 0); //yellow = weak
+    } else {
+      fill(255, 0, 0); //red = critical
+    }
+  } else if (color === "red") {
+    if (health > 50) {
+      fill(255, 0, 0); //red = good
+    } else if (health > 20) {
+      fill(253, 122, 3); //orangle = weak
+    } else {
+      fill(255, 255, 0); //yellow = critical
+    }
+  }
+
+  //healthBars
+  rect(x, y, healthBarWidth, 20);
+  fill(255);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  text(health + "%", x + barWidth / 2, y + 10);
+}
+
+function keyPressed() {
+  //press left & right keys to move blue player
+  if (keyCode === LEFT_ARROW) {
+    positionRed -= 10; //Left button
+  } else if (keyCode === RIGHT_ARROW) {
+    positionRed += 10; //Right button
+  }
+
+  //press 'a' & 's' to move red player
+  if (key === "a" || key === "A") {
+    positionBlue -= 10; //Left button
+  } else if (key === "s" || key === "S") {
+    positionBlue += 10; //Right button
+  }
+  //strike functions
+
+  //insert Red strike when 'UP_ARROW' is pressed
+  if (keyCode === UP_ARROW) {
+    isRedStriking = true;
+    setTimeout(() => {
+      isRedStriking = false;
+    }, 500);
+  }
+
+  //insert Blue strike when 'F' is pressed
+
+  if (key === "f" || key === "F") {
+    isBlueStriking = true;
+    setTimeout(() => {
+      isBlueStriking = false;
+    }, 500);
+  }
+}
+
+
+//when character runs out of health, the game is over and the music will stop
+function checkGameOver() {
+  if (blueHealth === 0) {
+    music.stop();
+    noLoop(); //stops the loop
+    textSize(32);
+    fill(255, 0, 0);
+    textAlign(CENTER, CENTER);
+    text("Red Wins!", width / 2, height / 2);
+    } else if(redHealth === 0) {
+      noLoop();
+      textSize(32);
+      fill(0, 0, 255);
+      textAlign(CENTER, CENTER);
+      text("Blue Wins!", width/2, height/2);
+    }
+    
+}
