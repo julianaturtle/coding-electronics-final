@@ -1,7 +1,11 @@
 //this was created by Camden Shanks and Juliana Hinson
 
+//this code requires one player to be at the computer and the other at a circuit playground express
+//FOR BLUE CHARACTER use circuit playground express. to move left and right, press the buttons. tap the A3 sensor to strike other player
+//FOR RED CHARACTER use arrow keys on keyboard to move left and right. hit up key to strike other player
+
 //serial
-let serialPorts = ['/dev/tty.usbmodem1101'];
+let serialPorts = ['/dev/tty.usbmodem1101']; //change serial port to whatever your serial port name is
 let serials = [];
 let data = [];
 let serial;
@@ -90,7 +94,7 @@ function setup() {
  serial = new p5.SerialPort();
 
  serial.list();
- serial.open('/dev/tty.usbmodem1101');
+ serial.open('/dev/tty.usbmodem1101'); //change serial port to whatever your serial port name is
 
  serial.on('connected', serverConnected);
 
