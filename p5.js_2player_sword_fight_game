@@ -1,7 +1,7 @@
 //this was created by Camden Shanks and Juliana Hinson
 
 //this code requires one player to be at the computer and the other at a circuit playground express
-//FOR BLUE CHARACTER use circuit playground express. to move left and right, press the buttons. tap the A3 sensor to strike other player
+//FOR BLUE CHARACTER use circuit playground express. to move left and right, press the buttons. tap the A2 sensor to strike other player
 //FOR RED CHARACTER use arrow keys on keyboard to move left and right. hit up key to strike other player
 
 //serial
@@ -113,14 +113,14 @@ function serverConnected() {
  print("Connected to Server");
 }
 
-// Callback function when the list of serial ports is available
+//callback function when the list of serial ports is available
 function gotList(portList) {
   console.log("Available Serial Ports:");
   for (let i = 0; i < portList.length; i++) {
     console.log(i + ": " + portList[i]);
   }
 
-  // Open the first available serial port
+  //open the first available serial port
   if (portList.length > 0) {
     serial.open(portList[0], { baudRate: 9600 }); // Open the port with a baud rate of 9600
   } else {
@@ -222,7 +222,7 @@ let redStrikebox = { x: positionRed + 200, y: redY + 50, w: 60, h: 60 };
 function collisionDetect() {
   let currentTime = millis();
 
-  //check if Blue strike hits Red fighter
+  //check if blue strike hits red fighter
   if (isBlueStriking && checkCollision(blueStrikebox, redStrikebox)) {
     if (currentTime - lastBlueHitTime > soundCooldown) {
       if (!swordHit1.isPlaying()) {
@@ -231,7 +231,7 @@ function collisionDetect() {
       lastBlueHitTime = currentTime;
     }
 
-    //collision detected - Decrease health of Red fighter
+    //collision detected - decrease health of red fighter
     redHealth = max(redHealth - 5, 0);
   }
 
